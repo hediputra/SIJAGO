@@ -1,0 +1,6 @@
+{
+  "name": "SIJAGO",
+  "description": "Sistem Informasi Desa (SID) Terintegrasi untuk digitalisasi administrasi, keterbukaan informasi publik, layanan surat digital mandiri, keuangan, pembangunan, absensi, dan pengaduan warga desa.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
