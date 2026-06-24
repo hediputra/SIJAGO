@@ -2107,6 +2107,7 @@ fun RowItemFinance(title: String, amt: String) {
 // ----------------------------------------------------
 // SCREEN 7: PROJECTS - MONITORING PEMBANGUNAN DESA
 // ----------------------------------------------------
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProjectScreen(
     projects: List<ProjectItem>,
@@ -2114,110 +2115,746 @@ fun ProjectScreen(
     onAddProject: () -> Unit,
     onDeleteProject: (Int) -> Unit
 ) {
+    val isDark = isSystemInDarkTheme()
+    val EmeraldGreen = Color(0xFF059669)
+    val GovGold = Color(0xFFD97706)
+
+    // Interactive States
+    var searchQuery by remember { mutableStateOf("") }
+    var selectedStatusFilter by remember { mutableStateOf("Semua") } // "Semua", "Dalam Perencanaan", "Sedang Berjalan", "Selesai"
+    var selectedSourceFilter by remember { mutableStateOf("Semua") } // "Semua", "Dana Desa (DD)", "ADD"
+    var expandedProjectId by remember { mutableStateOf<Int?>(null) }
+
+    // Dynamic filtering logic
+    val filteredProjects = remember(projects, searchQuery, selectedStatusFilter, selectedSourceFilter) {
+        projects.filter { proj ->
+            val matchesSearch = proj.name.contains(searchQuery, ignoreCase = true) ||
+                    proj.location.contains(searchQuery, ignoreCase = true)
+
+            val matchesStatus = when (selectedStatusFilter) {
+                "Dalam Perencanaan" -> proj.progress == 0
+                "Sedang Berjalan" -> proj.progress in 1..99
+                "Selesai" -> proj.progress == 100
+                else -> true
+            }
+
+            val matchesSource = when (selectedSourceFilter) {
+                "Dana Desa (DD)" -> proj.fundingSource.contains("DD", ignoreCase = true)
+                "ADD" -> proj.fundingSource.equals("ADD", ignoreCase = true)
+                else -> true
+            }
+
+            matchesSearch && matchesStatus && matchesSource
+        }
+    }
+
+    // Dashboard Statistics Calculation
+    val totalCount = projects.size
+    val completedCount = projects.count { it.progress == 100 }
+    val ongoingCount = projects.count { it.progress in 1..99 }
+    val totalBudget = projects.sumOf { it.budget }
+    
+    // Formatting Budget
+    val totalBudgetStr = if (totalBudget >= 1_000_000_000) {
+        String.format(Locale.getDefault(), "Rp %.2f M", totalBudget / 1_000_000_000.0)
+    } else {
+        String.format(Locale.getDefault(), "Rp %.0f Jt", totalBudget / 1_000_000.0)
+    }
+
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(16.dp)
+            .background(if (isDark) Color(0xFF0F172A) else Color(0xFFF8FAFC))
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+        // --- 1. HEADER SECTION ---
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 14.dp)
         ) {
-            Column {
-                Text(
-                    text = "Program Pembangunan",
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 18.sp,
-                )
-                Text(
-                    text = "Monitoring pekerjaan & kemajuan fisik",
-                    fontSize = 12.sp,
-                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.65f)
-                )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column {
+                    Text(
+                        text = "Monitoring Proyek Desa",
+                        fontWeight = FontWeight.ExtraBold,
+                        fontSize = 20.sp,
+                        color = if (isDark) Color.White else Color(0xFF0F172A),
+                        letterSpacing = (-0.5).sp
+                    )
+                    Text(
+                        text = "Transparansi pekerjaan & kemajuan fisik infrastruktur",
+                        fontSize = 11.sp,
+                        color = if (isDark) Color(0xFF94A3B8) else Color(0xFF64748B)
+                    )
+                }
+
+                if (role != "Masyarakat") {
+                    Button(
+                        onClick = onAddProject,
+                        shape = RoundedCornerShape(10.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = EmeraldGreen),
+                        modifier = Modifier.testTag("add_project_button")
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Add,
+                            contentDescription = "Buat Proyek",
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("Buat Proyek", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                    }
+                }
             }
 
-            if (role != "Masyarakat") {
-                Button(
-                    onClick = onAddProject,
-                    shape = RoundedCornerShape(8.dp),
-                    modifier = Modifier.testTag("add_project_button")
+            Spacer(modifier = Modifier.height(14.dp))
+
+            // --- 2. STATISTICS METRIC CARDS ---
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                // Total Projects Metric
+                Card(
+                    modifier = Modifier.weight(1f),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = if (isDark) Color(0xFF1E293B) else Color.White
+                    ),
+                    border = BorderStroke(1.dp, if (isDark) Color(0xFF334155) else Color(0xFFE2E8F0))
                 ) {
-                    Icon(imageVector = Icons.Default.Add, contentDescription = null, modifier = Modifier.size(16.dp))
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text("Buat Proyek", fontSize = 12.sp)
+                    Column(modifier = Modifier.padding(12.dp)) {
+                        Text(
+                            text = "TOTAL PROYEK",
+                            fontSize = 9.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.Gray,
+                            letterSpacing = 0.5.sp
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = "$totalCount Unit",
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Black,
+                            color = if (isDark) Color.White else Color(0xFF0F172A)
+                        )
+                    }
+                }
+
+                // Completed Projects Metric
+                Card(
+                    modifier = Modifier.weight(1f),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = if (isDark) Color(0xFF1E293B) else Color.White
+                    ),
+                    border = BorderStroke(1.dp, if (isDark) Color(0xFF334155) else Color(0xFFE2E8F0))
+                ) {
+                    Column(modifier = Modifier.padding(12.dp)) {
+                        Text(
+                            text = "SELESAI FISIK",
+                            fontSize = 9.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = EmeraldGreen,
+                            letterSpacing = 0.5.sp
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                text = "$completedCount Unit",
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Black,
+                                color = EmeraldGreen
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Icon(
+                                imageVector = Icons.Default.CheckCircle,
+                                contentDescription = null,
+                                tint = EmeraldGreen,
+                                modifier = Modifier.size(14.dp)
+                            )
+                        }
+                    }
+                }
+
+                // Budget Metric
+                Card(
+                    modifier = Modifier.weight(1f),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = if (isDark) Color(0xFF1E293B) else Color.White
+                    ),
+                    border = BorderStroke(1.dp, if (isDark) Color(0xFF334155) else Color(0xFFE2E8F0))
+                ) {
+                    Column(modifier = Modifier.padding(12.dp)) {
+                        Text(
+                            text = "ANGGARAN TOTAL",
+                            fontSize = 9.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = GovGold,
+                            letterSpacing = 0.5.sp
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = totalBudgetStr,
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Black,
+                            color = GovGold
+                        )
+                    }
                 }
             }
         }
 
-        Spacer(modifier = Modifier.height(16.dp))
-
-        projects.forEach { proj ->
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 6.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
-            ) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = proj.fundingSource,
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.primary
+        // --- 3. INTERACTIVE FILTERS & SEARCH ---
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 2.dp),
+            shape = RoundedCornerShape(14.dp),
+            colors = CardDefaults.cardColors(
+                containerColor = if (isDark) Color(0xFF1E293B) else Color.White
+            ),
+            border = BorderStroke(1.dp, if (isDark) Color(0xFF334155) else Color(0xFFE2E8F0))
+        ) {
+            Column(modifier = Modifier.padding(12.dp)) {
+                // Interactive Search Input
+                OutlinedTextField(
+                    value = searchQuery,
+                    onValueChange = { searchQuery = it },
+                    placeholder = { Text("Cari nama proyek atau lokasi...", fontSize = 12.sp) },
+                    leadingIcon = {
+                        Icon(
+                            imageVector = Icons.Default.Search,
+                            contentDescription = "Cari",
+                            tint = Color.Gray,
+                            modifier = Modifier.size(18.dp)
                         )
+                    },
+                    trailingIcon = {
+                        if (searchQuery.isNotEmpty()) {
+                            IconButton(onClick = { searchQuery = "" }) {
+                                Icon(
+                                    imageVector = Icons.Default.Close,
+                                    contentDescription = "Clear",
+                                    tint = Color.Gray,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                            }
+                        }
+                    },
+                    singleLine = true,
+                    shape = RoundedCornerShape(10.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = EmeraldGreen,
+                        unfocusedBorderColor = if (isDark) Color(0xFF334155) else Color(0xFFCBD5E1),
+                        focusedContainerColor = if (isDark) Color(0xFF0F172A) else Color(0xFFF8FAFC),
+                        unfocusedContainerColor = if (isDark) Color(0xFF0F172A) else Color(0xFFF8FAFC)
+                    ),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("project_search_field")
+                )
 
-                        Text(
-                            text = "Kemajuan: ${proj.progress}%",
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = if (proj.progress == 100) Color(0xFF047857) else Color(0xFFFF9F1C)
+                Spacer(modifier = Modifier.height(10.dp))
+
+                // Progress Status Filters
+                Text(
+                    text = "Filter Progress:",
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.Gray
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    listOf("Semua", "Dalam Perencanaan", "Sedang Berjalan", "Selesai").forEach { opt ->
+                        val isSel = selectedStatusFilter == opt
+                        FilterChip(
+                            selected = isSel,
+                            onClick = { selectedStatusFilter = opt },
+                            label = { Text(opt, fontSize = 10.sp, fontWeight = FontWeight.Bold) },
+                            shape = RoundedCornerShape(8.dp),
+                            colors = FilterChipDefaults.filterChipColors(
+                                selectedContainerColor = EmeraldGreen,
+                                selectedLabelColor = Color.White,
+                                containerColor = if (isDark) Color(0xFF0F172A) else Color(0xFFF1F5F9),
+                                labelColor = if (isDark) Color(0xFF94A3B8) else Color(0xFF475569)
+                            ),
+                            border = FilterChipDefaults.filterChipBorder(
+                                enabled = true,
+                                selected = isSel,
+                                borderColor = if (isDark) Color(0xFF334155) else Color(0xFFE2E8F0),
+                                selectedBorderColor = EmeraldGreen
+                            ),
+                            modifier = Modifier.testTag("project_status_chip_$opt")
                         )
                     }
+                }
 
-                    Spacer(modifier = Modifier.height(6.dp))
-                    Text(text = proj.name, fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(text = "Lokasi: ${proj.location}", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.75f))
-                    Text(text = "Anggaran Fisik: Rp ${DecimalFormat("#,###").format(proj.budget)}", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.secondary)
+                Spacer(modifier = Modifier.height(8.dp))
 
-                    Spacer(modifier = Modifier.height(8.dp))
+                // Funding Source Filters
+                Text(
+                    text = "Sumber Dana:",
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.Gray
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    listOf("Semua", "Dana Desa (DD)", "ADD").forEach { src ->
+                        val isSel = selectedSourceFilter == src
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(
+                                    if (isSel) {
+                                        if (isDark) Color(0xFF1E3A8A) else Color(0xFFEFF6FF)
+                                    } else {
+                                        if (isDark) Color(0xFF0F172A) else Color(0xFFF1F5F9)
+                                    }
+                                )
+                                .border(
+                                    1.dp,
+                                    if (isSel) {
+                                        Color(0xFF3B82F6)
+                                    } else {
+                                        Color.Transparent
+                                    },
+                                    RoundedCornerShape(8.dp)
+                                )
+                                .clickable { selectedSourceFilter = src }
+                                .padding(vertical = 8.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = src,
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = if (isSel) {
+                                    if (isDark) Color(0xFF60A5FA) else Color(0xFF1D4ED8)
+                                } else {
+                                    if (isDark) Color(0xFF94A3B8) else Color(0xFF475569)
+                                }
+                            )
+                        }
+                    }
+                }
+            }
+        }
 
-                    // Progress bar
-                    LinearProgressIndicator(
-                        progress = { proj.progress.toFloat() / 100f },
+        Spacer(modifier = Modifier.height(10.dp))
+
+        // --- 4. HIGH POLISH FEED LIST ---
+        if (filteredProjects.isEmpty()) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(40.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(64.dp)
+                        .clip(CircleShape)
+                        .background(if (isDark) Color(0xFF1E293B) else Color(0xFFF1F5F9)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Info,
+                        contentDescription = null,
+                        tint = Color.Gray,
+                        modifier = Modifier.size(32.dp)
+                    )
+                }
+                Spacer(modifier = Modifier.height(16.dp))
+                Text(
+                    text = "Proyek Tidak Ditemukan",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 14.sp,
+                    color = if (isDark) Color.White else Color(0xFF1E293B)
+                )
+                Text(
+                    text = "Silakan ganti kata kunci pencarian atau filter yang Anda pilih.",
+                    fontSize = 11.sp,
+                    color = Color.Gray,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 4.dp)
+                )
+            }
+        } else {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 2.dp)
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                filteredProjects.forEach { proj ->
+                    val isExpanded = expandedProjectId == proj.id
+                    
+                    Card(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(8.dp)
-                            .clip(RoundedCornerShape(4.dp)),
-                        color = if (proj.progress == 100) Color(0xFF047857) else MaterialTheme.colorScheme.primary
-                    )
-
-                    if (role != "Masyarakat") {
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.End
-                        ) {
-                            IconButton(
-                                onClick = { onDeleteProject(proj.id) },
-                                modifier = Modifier
-                                    .size(24.dp)
-                                    .testTag("delete_project_${proj.id}")
+                            .animateContentSize()
+                            .clickable {
+                                expandedProjectId = if (isExpanded) null else proj.id
+                            }
+                            .testTag("project_item_${proj.id}"),
+                        colors = CardDefaults.cardColors(
+                            containerColor = if (isDark) Color(0xFF1E293B) else Color.White
+                        ),
+                        border = BorderStroke(
+                            1.dp,
+                            if (isExpanded) {
+                                if (isDark) Color(0xFF3B82F6) else Color(0xFFBFDBFE)
+                            } else {
+                                if (isDark) Color(0xFF334155) else Color(0xFFE2E8F0)
+                            }
+                        ),
+                        shape = RoundedCornerShape(16.dp),
+                        elevation = CardDefaults.cardElevation(
+                            defaultElevation = if (isExpanded) 4.dp else 1.dp
+                        )
+                    ) {
+                        Column(modifier = Modifier.padding(16.dp)) {
+                            // Card Top: Badges and Title
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Icon(Icons.Default.Delete, contentDescription = "Hapus", tint = Color(0xFFBE123C), modifier = Modifier.size(18.dp))
+                                Surface(
+                                    shape = RoundedCornerShape(6.dp),
+                                    color = if (isDark) Color(0xFF1E3A8A) else Color(0xFFEFF6FF),
+                                    contentColor = if (isDark) Color(0xFF60A5FA) else Color(0xFF1E40AF)
+                                ) {
+                                    Text(
+                                        text = proj.fundingSource,
+                                        fontSize = 9.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                    )
+                                }
+
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    // Status icon indicator
+                                    val statusColor = when (proj.progress) {
+                                        100 -> EmeraldGreen
+                                        0 -> Color.Gray
+                                        else -> GovGold
+                                    }
+                                    Box(
+                                        modifier = Modifier
+                                            .size(6.dp)
+                                            .clip(CircleShape)
+                                            .background(statusColor)
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text(
+                                        text = when (proj.progress) {
+                                            100 -> "Selesai 100%"
+                                            0 -> "Perencanaan"
+                                            else -> "Fisik: ${proj.progress}%"
+                                        },
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = statusColor
+                                    )
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.height(10.dp))
+
+                            // Project Name Title
+                            Text(
+                                text = proj.name,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 15.sp,
+                                color = if (isDark) Color.White else Color(0xFF0F172A),
+                                modifier = Modifier.testTag("project_title_${proj.id}")
+                            )
+
+                            Spacer(modifier = Modifier.height(6.dp))
+
+                            // Location with icon
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.LocationOn,
+                                    contentDescription = "Lokasi",
+                                    tint = EmeraldGreen,
+                                    modifier = Modifier.size(14.dp)
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(
+                                    text = proj.location,
+                                    fontSize = 11.sp,
+                                    color = if (isDark) Color(0xFF94A3B8) else Color(0xFF475569),
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                    modifier = Modifier.testTag("project_location_${proj.id}")
+                                )
+                                Spacer(modifier = Modifier.weight(1f))
+                                Surface(
+                                    shape = RoundedCornerShape(4.dp),
+                                    color = if (isDark) Color(0xFF334155) else Color(0xFFF1F5F9)
+                                ) {
+                                    Text(
+                                        text = "Verifikasi GIS",
+                                        fontSize = 8.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color.Gray,
+                                        modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
+                                    )
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.height(12.dp))
+
+                            // Budget display
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = "Anggaran Alokasi:",
+                                    fontSize = 11.sp,
+                                    color = Color.Gray
+                                )
+                                Text(
+                                    text = "Rp " + DecimalFormat("#,###").format(proj.budget),
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = if (isDark) Color.White else Color(0xFF0F172A)
+                                )
+                            }
+
+                            Spacer(modifier = Modifier.height(10.dp))
+
+                            // Progress Bar Section
+                            LinearProgressIndicator(
+                                progress = { proj.progress.toFloat() / 100f },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(8.dp)
+                                    .clip(RoundedCornerShape(4.dp))
+                                    .testTag("project_progress_${proj.id}"),
+                                color = if (proj.progress == 100) EmeraldGreen else GovGold,
+                                trackColor = if (isDark) Color(0xFF334155) else Color(0xFFE2E8F0)
+                            )
+
+                            // Interactive Collapse/Expand Hints
+                            Spacer(modifier = Modifier.height(10.dp))
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier.clickable {
+                                        expandedProjectId = if (isExpanded) null else proj.id
+                                    }
+                                ) {
+                                    Icon(
+                                        imageVector = if (isExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                                        contentDescription = if (isExpanded) "Sembunyikan" else "Tampilkan Detail",
+                                        tint = if (isDark) Color(0xFF60A5FA) else Color(0xFF1D4ED8),
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text(
+                                        text = if (isExpanded) "Sembunyikan detail" else "Lihat rincian & dokumentasi",
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = if (isDark) Color(0xFF60A5FA) else Color(0xFF1D4ED8)
+                                    )
+                                }
+
+                                if (role != "Masyarakat") {
+                                    IconButton(
+                                        onClick = { onDeleteProject(proj.id) },
+                                        modifier = Modifier
+                                            .size(24.dp)
+                                            .testTag("delete_project_${proj.id}")
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Delete,
+                                            contentDescription = "Hapus Proyek",
+                                            tint = Color(0xFFEF4444),
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                    }
+                                }
+                            }
+
+                            // --- 5. EXPANDED TIMELINE & PHOTO WORK ---
+                            if (isExpanded) {
+                                Spacer(modifier = Modifier.height(14.dp))
+                                HorizontalDivider(color = if (isDark) Color(0xFF334155) else Color(0xFFE2E8F0))
+                                Spacer(modifier = Modifier.height(12.dp))
+
+                                // Information details
+                                Text(
+                                    text = "Rincian Pelaksanaan Proyek:",
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = if (isDark) Color.LightGray else Color.DarkGray
+                                )
+                                Spacer(modifier = Modifier.height(6.dp))
+
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Text("Tanggal Rencana Mulai", fontSize = 10.sp, color = Color.Gray)
+                                    Text(proj.originalDate, fontSize = 10.sp, fontWeight = FontWeight.Bold, color = if (isDark) Color.White else Color(0xFF0F172A))
+                                }
+                                Row(
+                                    modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Text("Status Pengadaan Pekerja", fontSize = 10.sp, color = Color.Gray)
+                                    Text(
+                                        text = if (proj.progress > 0) "Terpenuhi & Aktif" else "Menunggu Jadwal",
+                                        fontSize = 10.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = if (proj.progress > 0) EmeraldGreen else Color.Gray
+                                    )
+                                }
+                                Row(
+                                    modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Text("Pengawas Teknis", fontSize = 10.sp, color = Color.Gray)
+                                    Text("Tim Pengelola Kegiatan (TPK) Desa", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = if (isDark) Color.White else Color(0xFF0F172A))
+                                }
+
+                                Spacer(modifier = Modifier.height(14.dp))
+
+                                // Visual Photo placeholders (Condition comparison checks)
+                                Text(
+                                    text = "Dokumentasi Visual Lapangan:",
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = if (isDark) Color.LightGray else Color.DarkGray
+                                )
+                                Spacer(modifier = Modifier.height(6.dp))
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    // Before Photo
+                                    Card(
+                                        modifier = Modifier.weight(1f).height(80.dp),
+                                        colors = CardDefaults.cardColors(containerColor = if (isDark) Color(0xFF334155) else Color(0xFFF1F5F9)),
+                                        border = BorderStroke(1.dp, if (isDark) Color(0xFF475569) else Color(0xFFE2E8F0))
+                                    ) {
+                                        Column(
+                                            modifier = Modifier.fillMaxSize().padding(4.dp),
+                                            verticalArrangement = Arrangement.Center,
+                                            horizontalAlignment = Alignment.CenterHorizontally
+                                        ) {
+                                            Icon(imageVector = Icons.Default.Info, contentDescription = null, tint = Color.Gray, modifier = Modifier.size(18.dp))
+                                            Spacer(modifier = Modifier.height(2.dp))
+                                            Text("Kondisi 0% (Awal)", fontSize = 9.sp, fontWeight = FontWeight.Bold, color = if (isDark) Color.LightGray else Color.DarkGray)
+                                            Text("Lihat Foto Sebelum", fontSize = 7.sp, color = Color.Gray, textAlign = TextAlign.Center)
+                                        }
+                                    }
+                                    // After Photo
+                                    Card(
+                                        modifier = Modifier.weight(1f).height(80.dp),
+                                        colors = CardDefaults.cardColors(containerColor = if (isDark) Color(0xFF334155) else Color(0xFFF1F5F9)),
+                                        border = BorderStroke(1.dp, if (isDark) Color(0xFF475569) else Color(0xFFE2E8F0))
+                                    ) {
+                                        Column(
+                                            modifier = Modifier.fillMaxSize().padding(4.dp),
+                                            verticalArrangement = Arrangement.Center,
+                                            horizontalAlignment = Alignment.CenterHorizontally
+                                        ) {
+                                            Icon(imageVector = Icons.Default.TrendingUp, contentDescription = null, tint = EmeraldGreen, modifier = Modifier.size(18.dp))
+                                            Spacer(modifier = Modifier.height(2.dp))
+                                            Text(if (proj.progress == 100) "Kondisi 100% (Selesai)" else "Progress Terkini", fontSize = 9.sp, fontWeight = FontWeight.Bold, color = if (isDark) Color.LightGray else Color.DarkGray)
+                                            Text("Lihat Foto Terbaru", fontSize = 7.sp, color = Color.Gray, textAlign = TextAlign.Center)
+                                        }
+                                    }
+                                }
+
+                                Spacer(modifier = Modifier.height(14.dp))
+
+                                // Project Milestones Tracker Step Flow
+                                Text(
+                                    text = "Milestone & Tahapan Pekerjaan:",
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = if (isDark) Color.LightGray else Color.DarkGray
+                                )
+                                Spacer(modifier = Modifier.height(10.dp))
+
+                                // Steps List
+                                listOf(
+                                    Triple("Tahap 1: Survei Lokasi & Perencanaan Anggaran", "Penyusunan RAB dan musyawarah mufakat warga.", 1),
+                                    Triple("Tahap 2: Pengadaan Material & Mobilisasi Alat", "Pembelian material beton, aspal, semen, dsb.", 15),
+                                    Triple("Tahap 3: Pelaksanaan & Konstruksi Fisik", "Pekerjaan konstruksi utama oleh warga desa setempat.", 50),
+                                    Triple("Tahap 4: Pemeriksaan Teknis & Serah Terima", "Pemeriksaan hasil akhir dan berita acara penyerahan.", 100)
+                                ).forEach { step ->
+                                    val isStepCompleted = proj.progress >= step.third
+                                    val isStepActive = proj.progress < step.third && (proj.progress > 0 || step.third == 1)
+
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
+                                        verticalAlignment = Alignment.Top
+                                    ) {
+                                        Icon(
+                                            imageVector = if (isStepCompleted) Icons.Default.CheckCircle else Icons.Default.Info,
+                                            contentDescription = null,
+                                            tint = if (isStepCompleted) EmeraldGreen else (if (isStepActive) GovGold else Color.Gray),
+                                            modifier = Modifier.size(16.dp).padding(top = 1.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Column {
+                                            Text(
+                                                text = step.first,
+                                                fontSize = 10.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = if (isStepCompleted) {
+                                                    if (isDark) Color.White else Color(0xFF0F172A)
+                                                } else {
+                                                    Color.Gray
+                                                }
+                                            )
+                                            Text(
+                                                text = step.second,
+                                                fontSize = 9.sp,
+                                                color = Color.Gray
+                                            )
+                                        }
+                                    }
+                                }
                             }
                         }
                     }
                 }
             }
         }
+        Spacer(modifier = Modifier.height(16.dp))
     }
 }
 

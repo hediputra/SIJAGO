@@ -223,7 +223,7 @@ class ExampleRobolectricTest {
     composeTestRule.onNodeWithTag("report_input_form_card").assertExists()
     composeTestRule.onNodeWithTag("report_title_input").assertExists()
     composeTestRule.onNodeWithTag("report_desc_input").assertExists()
-    composeTestRule.onNodeWithTag("category_chip_Infrastruktur").assertExists()
+    composeTestRule.onNodeWithTag("report_category_dropdown_trigger").assertExists()
     composeTestRule.onNodeWithTag("upload_attachment_button").assertExists()
     composeTestRule.onNodeWithTag("submit_report_button").assertExists()
 

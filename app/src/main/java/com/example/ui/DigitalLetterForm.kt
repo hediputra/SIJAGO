@@ -16,6 +16,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -157,6 +158,8 @@ fun DigitalLetterForm(
     onCancel: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val loggedInCitizen by viewModel.loggedInCitizen.collectAsStateWithLifecycle()
+
     val letterTypes = listOf(
         "Surat Keterangan Domisili",
         "Surat Keterangan Usaha",
@@ -211,9 +214,189 @@ fun DigitalLetterForm(
             .verticalScroll(rememberScrollState())
             .padding(bottom = 16.dp)
     ) {
-        // Step 1: Letter Type Selection Indicator & Chip Groups
+        // Step 1: Identity Card Info Block (Auto-filled based on Authentication)
+        val citizen = loggedInCitizen
+        val userName = citizen?.name ?: "Budi Rahardjo"
+        val userNik = citizen?.nik ?: "3301021008030005"
+        val userKk = citizen?.kk ?: "3301021908050012"
+        val userAddress = "${citizen?.address ?: "Jl. Makmur No. 12"}, RT ${citizen?.rt ?: 2} / RW ${citizen?.rw ?: 4}, Dusun ${citizen?.dusun ?: "Suka Makmur"}"
+        val userPhone = citizen?.phoneNumber ?: "08123456789"
+
         Text(
-            text = "1. PILIH JENIS SURAT DIGITAL",
+            text = "1. IDENTITAS WARGA TERAUTENTIKASI",
+            fontSize = 11.sp,
+            fontWeight = FontWeight.Bold,
+            color = if (isDark) Color(0xFF60A5FA) else EmeraldGreen,
+            letterSpacing = 0.5.sp
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 20.dp),
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(
+                containerColor = if (isDark) Color(0xFF1E293B) else Color(0xFFEFF6FF)
+            ),
+            border = BorderStroke(
+                1.dp,
+                if (isDark) Color(0xFF1E3A8A) else Color(0xFFBFDBFE)
+            )
+        ) {
+            Column(modifier = Modifier.padding(14.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = Icons.Default.CheckCircle,
+                            contentDescription = "Terautentikasi",
+                            tint = if (isDark) Color(0xFF34D399) else EmeraldGreen,
+                            modifier = Modifier.size(20.dp).testTag("verified_identity_badge")
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "PROFIL TERVERIFIKASI SISTEM",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 11.sp,
+                            color = if (isDark) Color(0xFF60A5FA) else Color(0xFF1D4ED8),
+                            letterSpacing = 0.5.sp
+                        )
+                    }
+                    
+                    Surface(
+                        shape = RoundedCornerShape(6.dp),
+                        color = (if (isDark) Color(0xFF047857) else Color(0xFFD1FAE5)),
+                        contentColor = (if (isDark) Color(0xFF34D399) else Color(0xFF065F46))
+                    ) {
+                        Text(
+                            text = "AUTO-FILL AKTIF",
+                            fontSize = 8.sp,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                        )
+                    }
+                }
+                
+                Spacer(modifier = Modifier.height(6.dp))
+                Text(
+                    text = "Data kependudukan Anda ditarik secara otomatis dari sistem pelayanan desa SIJAGO untuk kemudahan permohonan digital.",
+                    fontSize = 10.sp,
+                    color = if (isDark) Color(0xFF94A3B8) else Color(0xFF475569)
+                )
+                
+                Spacer(modifier = Modifier.height(14.dp))
+                
+                // Read-only fields
+                OutlinedTextField(
+                    value = userName,
+                    onValueChange = {},
+                    label = { Text("Nama Pemohon") },
+                    readOnly = true,
+                    enabled = false,
+                    singleLine = true,
+                    colors = OutlinedTextFieldDefaults.colors(
+                        disabledTextColor = if (isDark) Color.White else Color(0xFF0F172A),
+                        disabledBorderColor = if (isDark) Color(0xFF334155) else Color(0xFFCBD5E1),
+                        disabledLabelColor = Color.Gray,
+                        disabledContainerColor = Color.Transparent
+                    ),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 8.dp)
+                        .testTag("autofill_name_field")
+                )
+                
+                OutlinedTextField(
+                    value = userNik,
+                    onValueChange = {},
+                    label = { Text("NIK Pemohon") },
+                    readOnly = true,
+                    enabled = false,
+                    singleLine = true,
+                    colors = OutlinedTextFieldDefaults.colors(
+                        disabledTextColor = if (isDark) Color.White else Color(0xFF0F172A),
+                        disabledBorderColor = if (isDark) Color(0xFF334155) else Color(0xFFCBD5E1),
+                        disabledLabelColor = Color.Gray,
+                        disabledContainerColor = Color.Transparent
+                    ),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 8.dp)
+                        .testTag("autofill_nik_field")
+                )
+
+                OutlinedTextField(
+                    value = userKk,
+                    onValueChange = {},
+                    label = { Text("No. Kartu Keluarga (KK)") },
+                    readOnly = true,
+                    enabled = false,
+                    singleLine = true,
+                    colors = OutlinedTextFieldDefaults.colors(
+                        disabledTextColor = if (isDark) Color.White else Color(0xFF0F172A),
+                        disabledBorderColor = if (isDark) Color(0xFF334155) else Color(0xFFCBD5E1),
+                        disabledLabelColor = Color.Gray,
+                        disabledContainerColor = Color.Transparent
+                    ),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 8.dp)
+                        .testTag("autofill_kk_field")
+                )
+
+                OutlinedTextField(
+                    value = userAddress,
+                    onValueChange = {},
+                    label = { Text("Alamat Pemohon") },
+                    readOnly = true,
+                    enabled = false,
+                    colors = OutlinedTextFieldDefaults.colors(
+                        disabledTextColor = if (isDark) Color.White else Color(0xFF0F172A),
+                        disabledBorderColor = if (isDark) Color(0xFF334155) else Color(0xFFCBD5E1),
+                        disabledLabelColor = Color.Gray,
+                        disabledContainerColor = Color.Transparent
+                    ),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 8.dp)
+                        .testTag("autofill_address_field")
+                )
+
+                OutlinedTextField(
+                    value = userPhone,
+                    onValueChange = {},
+                    label = { Text("No. Telepon / WhatsApp") },
+                    readOnly = true,
+                    enabled = false,
+                    singleLine = true,
+                    colors = OutlinedTextFieldDefaults.colors(
+                        disabledTextColor = if (isDark) Color.White else Color(0xFF0F172A),
+                        disabledBorderColor = if (isDark) Color(0xFF334155) else Color(0xFFCBD5E1),
+                        disabledLabelColor = Color.Gray,
+                        disabledContainerColor = Color.Transparent
+                    ),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("autofill_phone_field")
+                )
+
+                Spacer(modifier = Modifier.height(6.dp))
+                Text(
+                    text = "*Jika data kependudukan tidak sesuai, silakan hubungi operator desa atau perbarui profil Anda.",
+                    fontSize = 9.sp,
+                    color = Color.Gray,
+                    fontWeight = FontWeight.Medium
+                )
+            }
+        }
+
+        // Step 2: Letter Type Selection Indicator & Chip Groups
+        Text(
+            text = "2. PILIH JENIS SURAT DIGITAL",
             fontSize = 11.sp,
             fontWeight = FontWeight.Bold,
             color = if (isDark) Color(0xFF60A5FA) else EmeraldGreen,
@@ -282,9 +465,9 @@ fun DigitalLetterForm(
 
         Spacer(modifier = Modifier.height(20.dp))
 
-        // Step 2: Form Details Input (Under MD3 input rules with beautiful guidance)
+        // Step 3: Form Details Input (Under MD3 input rules with beautiful guidance)
         Text(
-            text = "2. ISI DETAIL PERMOHONAN",
+            text = "3. ISI DETAIL PERMOHONAN",
             fontSize = 11.sp,
             fontWeight = FontWeight.Bold,
             color = if (isDark) Color(0xFF60A5FA) else EmeraldGreen,
@@ -380,14 +563,14 @@ fun DigitalLetterForm(
 
         Spacer(modifier = Modifier.height(24.dp))
 
-        // Step 3: Document Uploaders Dynamic checklist
+        // Step 4: Document Uploaders Dynamic checklist
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.Bottom
         ) {
             Text(
-                text = "3. UNGGAH DOKUMEN PERSYARATAN",
+                text = "4. UNGGAH DOKUMEN PERSYARATAN",
                 fontSize = 11.sp,
                 fontWeight = FontWeight.Bold,
                 color = if (isDark) Color(0xFF60A5FA) else EmeraldGreen,
@@ -502,8 +685,13 @@ fun DigitalLetterForm(
             Button(
                 onClick = {
                     if (isReadyToSubmit) {
-                        // Construct robust field-map for repository
+                        // Construct robust field-map for repository with auto-filled authenticated details
                         val fieldsMap = mutableMapOf(
+                            "Nama Pemohon" to userName,
+                            "NIK Pemohon" to userNik,
+                            "No. KK Pemohon" to userKk,
+                            "Alamat Pemohon" to userAddress,
+                            "No. Telepon" to userPhone,
                             "Keperluan" to detailKeperluan,
                             "Detail" to extraDetailInput
                         )

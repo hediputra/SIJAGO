@@ -57,6 +57,7 @@ fun ReportScreen(
     var selectedStatusFilter by remember { mutableStateOf<String?>(null) }
     var expandedReportId by remember { mutableStateOf<Int?>(null) }
     var showAttachmentDialog by remember { mutableStateOf(false) }
+    var showCategoryDropdown by remember { mutableStateOf(false) }
 
     val categories = listOf("Infrastruktur", "Sosial", "Pelayanan", "Keamanan", "Darurat")
 
@@ -251,33 +252,102 @@ fun ReportScreen(
                         )
                         Spacer(modifier = Modifier.height(6.dp))
 
-                        Row(
+                        // Category Selection Dropdown
+                        Box(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .horizontalScroll(rememberScrollState()),
-                            horizontalArrangement = Arrangement.spacedBy(6.dp)
                         ) {
-                            categories.forEach { cat ->
-                                val isSelected = selectedCategory == cat
-                                FilterChip(
-                                    selected = isSelected,
-                                    onClick = { selectedCategory = cat },
-                                    label = { Text(cat, fontSize = 11.sp, fontWeight = FontWeight.Bold) },
-                                    shape = RoundedCornerShape(8.dp),
-                                    colors = FilterChipDefaults.filterChipColors(
-                                        selectedContainerColor = EmeraldGreen,
-                                        selectedLabelColor = Color.White,
-                                        containerColor = if (isDark) Color(0xFF0F172A) else Color(0xFFF1F5F9),
-                                        labelColor = if (isDark) Color(0xFF94A3B8) else Color(0xFF475569)
-                                    ),
-                                    border = FilterChipDefaults.filterChipBorder(
-                                        enabled = true,
-                                        selected = isSelected,
-                                        borderColor = if (isDark) Color(0xFF334155) else Color(0xFFE2E8F0),
-                                        selectedBorderColor = EmeraldGreen
-                                    ),
-                                    modifier = Modifier.testTag("category_chip_$cat")
-                                )
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .background(if (isDark) Color(0xFF1E293B) else Color.White)
+                                    .border(
+                                        1.dp,
+                                        if (isDark) Color(0xFF334155) else Color(0xFFCBD5E1),
+                                        RoundedCornerShape(12.dp)
+                                    )
+                                    .clickable { showCategoryDropdown = true }
+                                    .padding(horizontal = 14.dp, vertical = 14.dp)
+                                    .testTag("report_category_dropdown_trigger")
+                            ) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Icon(
+                                            imageVector = when (selectedCategory) {
+                                                "Infrastruktur" -> Icons.Default.Construction
+                                                "Sosial" -> Icons.Default.People
+                                                "Pelayanan" -> Icons.Default.Engineering
+                                                "Keamanan" -> Icons.Default.Security
+                                                "Darurat" -> Icons.Default.Warning
+                                                else -> Icons.Default.Category
+                                            },
+                                            contentDescription = null,
+                                            tint = EmeraldGreen,
+                                            modifier = Modifier.size(20.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(10.dp))
+                                        Text(
+                                            text = selectedCategory,
+                                            fontSize = 13.sp,
+                                            fontWeight = FontWeight.SemiBold,
+                                            color = if (isDark) Color.White else Color(0xFF1E293B)
+                                        )
+                                    }
+                                    Icon(
+                                        imageVector = Icons.Default.ArrowDropDown,
+                                        contentDescription = "Pilih Kategori",
+                                        tint = if (isDark) Color(0xFF94A3B8) else Color(0xFF64748B),
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                }
+                            }
+
+                            DropdownMenu(
+                                expanded = showCategoryDropdown,
+                                onDismissRequest = { showCategoryDropdown = false },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .background(if (isDark) Color(0xFF1E293B) else Color.White)
+                                    .border(1.dp, if (isDark) Color(0xFF334155) else Color(0xFFE2E8F0), RoundedCornerShape(8.dp))
+                            ) {
+                                categories.forEach { cat ->
+                                    DropdownMenuItem(
+                                        text = {
+                                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                                Icon(
+                                                    imageVector = when (cat) {
+                                                        "Infrastruktur" -> Icons.Default.Construction
+                                                        "Sosial" -> Icons.Default.People
+                                                        "Pelayanan" -> Icons.Default.Engineering
+                                                        "Keamanan" -> Icons.Default.Security
+                                                        "Darurat" -> Icons.Default.Warning
+                                                        else -> Icons.Default.Category
+                                                    },
+                                                    contentDescription = null,
+                                                    tint = if (selectedCategory == cat) EmeraldGreen else Color.Gray,
+                                                    modifier = Modifier.size(16.dp)
+                                                )
+                                                Spacer(modifier = Modifier.width(8.dp))
+                                                Text(
+                                                    text = cat,
+                                                    fontSize = 13.sp,
+                                                    fontWeight = if (selectedCategory == cat) FontWeight.Bold else FontWeight.Normal,
+                                                    color = if (selectedCategory == cat) EmeraldGreen else (if (isDark) Color.White else Color(0xFF1E293B))
+                                                )
+                                            }
+                                        },
+                                        onClick = {
+                                            selectedCategory = cat
+                                            showCategoryDropdown = false
+                                        },
+                                        modifier = Modifier.testTag("category_option_$cat")
+                                    )
+                                }
                             }
                         }
 
@@ -293,27 +363,71 @@ fun ReportScreen(
                         Spacer(modifier = Modifier.height(6.dp))
 
                         if (attachedPhotoPath.isEmpty()) {
-                            // Empty Upload state button
-                            OutlinedButton(
-                                onClick = { showAttachmentDialog = true },
+                            // High Polish visual Photo Upload Placeholder for local reports
+                            Box(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .height(48.dp)
-                                    .testTag("upload_attachment_button"),
-                                shape = RoundedCornerShape(12.dp),
-                                colors = ButtonDefaults.outlinedButtonColors(
-                                    contentColor = EmeraldGreen
-                                ),
-                                border = BorderStroke(1.dp, EmeraldGreen.copy(alpha = 0.5f))
-                            ) {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Icon(
-                                        imageVector = Icons.Outlined.PhotoCamera,
-                                        contentDescription = "Unggah Foto Bukti",
-                                        modifier = Modifier.size(18.dp)
+                                    .clip(RoundedCornerShape(16.dp))
+                                    .background(if (isDark) Color(0xFF1E293B) else Color(0xFFF8FAFC))
+                                    .border(
+                                        BorderStroke(
+                                            1.5.dp,
+                                            if (isDark) Color(0xFF334155) else Color(0xFFE2E8F0)
+                                        ),
+                                        shape = RoundedCornerShape(16.dp)
                                     )
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                    Text("Ambil / Unggah Foto Bukti", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                    .clickable { showAttachmentDialog = true }
+                                    .padding(vertical = 24.dp, horizontal = 16.dp)
+                                    .testTag("upload_attachment_button"),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Column(
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                    verticalArrangement = Arrangement.Center
+                                ) {
+                                    // Beautiful photo background ring
+                                    Box(
+                                        modifier = Modifier
+                                            .size(56.dp)
+                                            .clip(CircleShape)
+                                            .background(EmeraldGreen.copy(alpha = 0.12f)),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Outlined.PhotoCamera,
+                                            contentDescription = "Ambil Foto Laporan",
+                                            tint = EmeraldGreen,
+                                            modifier = Modifier.size(28.dp)
+                                        )
+                                    }
+                                    Spacer(modifier = Modifier.height(12.dp))
+                                    Text(
+                                        text = "Ambil / Unggah Foto Bukti",
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 13.sp,
+                                        color = if (isDark) Color.White else Color(0xFF1E293B)
+                                    )
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Text(
+                                        text = "Unggah foto kondisi lapangan sebagai bukti kuat pendukung laporan Anda",
+                                        fontSize = 11.sp,
+                                        color = if (isDark) Color(0xFF94A3B8) else Color(0xFF64748B),
+                                        textAlign = TextAlign.Center,
+                                        modifier = Modifier.padding(horizontal = 16.dp)
+                                    )
+                                    Spacer(modifier = Modifier.height(10.dp))
+                                    Surface(
+                                        shape = RoundedCornerShape(8.dp),
+                                        color = if (isDark) Color(0xFF334155) else Color(0xFFEDFDF6),
+                                        contentColor = EmeraldGreen
+                                    ) {
+                                        Text(
+                                            text = "FORMAT JPG/PNG • MAKS 5MB",
+                                            fontSize = 9.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                                        )
+                                    }
                                 }
                             }
                         } else {
